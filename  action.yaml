@@ -1,4 +1,4 @@
-name: "Build a Image"
+name: "Modus Common Build"
 description: "Common build steps for each service"
 
 inputs:
