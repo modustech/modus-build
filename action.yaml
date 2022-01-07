@@ -2,8 +2,17 @@ name: "Modus Common Build"
 description: "Common build steps for each service"
 
 inputs:
-  erc_repository:
+  ecr_repository:
     description: "repository name of the service"
+    required: true
+  aws_access_key_id:
+    description: "aws access key id"
+    required: true
+  aws_secret_access_key:
+    description: "aws secret access key"
+    required: true
+  github_token:
+    description: "github token"
     required: true
 
 runs:
@@ -21,8 +30,8 @@ runs:
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-access-key-id: ${{ input.aws_access_key_id }}
+        aws-secret-access-key: ${{ input.aws_secret_access_key }}
         aws-region: us-west-2
 
     - name: Login to Amazon ECR
@@ -33,7 +42,7 @@ runs:
       id: bump-version
       uses: anothrNick/github-tag-action@1.36.0
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ input.github_token }}
         WITH_V: true
         DEFAULT_BUMP: patch
         RELEASE_BRANCHES: master
@@ -57,7 +66,7 @@ runs:
     - name: Build and Push
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: ${{ input.erc_repository }}
+        ECR_REPOSITORY: ${{ input.ecr_repository }}
         IMAGE_TAG: ${{ steps.bump-version.outputs.new_tag }}
       run: |
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
@@ -81,8 +90,8 @@ runs:
     - name: Push Helm chart to S3
       id: helm-publish
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_ACCESS_KEY_ID: ${{ input.aws_access_key_id }}
+        AWS_SECRET_ACCESS_KEY: ${{ input.aws_secret_access_key }}
         AWS_REGION: 'us-west-2'
         AWS_S3_BUCKET: modustech-helm-charts
       run: |
@@ -93,6 +102,6 @@ runs:
     - name: Create Github Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ input.github_token }}
       run: |
         ./release.sh ${{ steps.bump-version.outputs.new_tag }}
