@@ -62,6 +62,7 @@ runs:
       run: |
         wget https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64
         chmod +x test-reporter-latest-linux-amd64
+      shell: bash
 
     - name: Build and Push
       env:
@@ -71,10 +72,12 @@ runs:
       run: |
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      shell: bash
 
     - name: Logout of Amazon ECR
       if: always()
       run: docker logout ${{ steps.login-ecr.outputs.registry }}
+      shell: bash
 
     - name: Install Helm
       uses: azure/setup-helm@v1
@@ -86,6 +89,7 @@ runs:
       run: |
         sed -i 's/dev/${{ steps.bump-version.outputs.new_tag }}/g' ./charts/sales/values.yaml
         helm package ./charts/sales --version ${{ steps.bump-version.outputs.new_tag }}
+      shell: bash
 
     - name: Push Helm chart to S3
       id: helm-publish
@@ -98,6 +102,7 @@ runs:
         helm plugin install https://github.com/hypnoglow/helm-s3.git
         helm repo add s3repo s3://modustech-helm-charts/charts
         helm s3 push --force sales-${{ steps.bump-version.outputs.new_tag }}.tgz s3repo
+      shell: bash
 
     - name: Create Github Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -105,3 +110,4 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
       run: |
         ./release.sh ${{ steps.bump-version.outputs.new_tag }}
+      shell: bash
