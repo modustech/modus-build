@@ -14,48 +14,41 @@ inputs:
   github_token:
     description: "github token"
     required: true
+  version_tag:
+    description: "the bumped version tag"
+    required: true
+  codecov_tag:
+    description: "the code coverage tag name"
+    required: true
 
 runs:
   using: "composite"
   steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 1
-    
-    - name: Set up Docker Buildx
+    - 
+      name: Set up Docker Buildx
       id: buildx
       uses: docker/setup-buildx-action@v1
-
-    - name: Configure AWS Credentials
+    - 
+      name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ inputs.aws_access_key_id }}
         aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
         aws-region: us-west-2
-
-    - name: Login to Amazon ECR
+    - 
+      name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Bump version and push tag
-      id: bump-version
-      uses: anothrNick/github-tag-action@1.36.0
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        WITH_V: true
-        DEFAULT_BUMP: patch
-        RELEASE_BRANCHES: master
-
-    - name: Cache Code Climate Binary
+    - 
+      name: Cache Code Climate Binary
       id: cachecodeclimate
       uses: actions/cache@v2
       with:
         path: |
           ./test-reporter-latest-linux-amd64
         key: cachecodeclimate
-
-    - name: codeclimate-download
+    - 
+      name: codeclimate-download
       if: steps.cachecodeclimate.outputs.cache-hit != 'true'
       env:
         CC_TEST_REPORTER_ID: 33c667de6f083eb96127c0bd28a3f54e09b5548945f12fb859f38237568076a0
@@ -63,35 +56,37 @@ runs:
         wget https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64
         chmod +x test-reporter-latest-linux-amd64
       shell: bash
-
-    - name: Build and Push
+    - 
+      name: Build and Push
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ inputs.ecr_repository }}
-        IMAGE_TAG: ${{ steps.bump-version.outputs.new_tag }}
+        IMAGE_TAG: ${{ inputs.version_tag }}
+        CODECOV_TAG: ${{ inputs.codecov_tag }}
       run: |
+        docker build --build-arg NPM_TOKEN=$NPM_TOKEN --target codecov -t $CODECOV_TAG .
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       shell: bash
-
-    - name: Logout of Amazon ECR
+    - 
+      name: Logout of Amazon ECR
       if: always()
       run: docker logout ${{ steps.login-ecr.outputs.registry }}
       shell: bash
-
-    - name: Install Helm
+    - 
+      name: Install Helm
       uses: azure/setup-helm@v1
       with:
         version: v3.7.1
-
-    - name: Package Helm chart
+    - 
+      name: Package Helm chart
       id: helm-package
       run: |
-        sed -i 's/dev/${{ steps.bump-version.outputs.new_tag }}/g' ./charts/sales/values.yaml
-        helm package ./charts/sales --version ${{ steps.bump-version.outputs.new_tag }}
+        sed -i 's/dev/${{ inputs.version_tag }}/g' ./charts/sales/values.yaml
+        helm package ./charts/sales --version ${{ inputs.version_tag }}
       shell: bash
-
-    - name: Push Helm chart to S3
+    - 
+      name: Push Helm chart to S3
       id: helm-publish
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
@@ -101,13 +96,5 @@ runs:
       run: |
         helm plugin install https://github.com/hypnoglow/helm-s3.git
         helm repo add s3repo s3://modustech-helm-charts/charts
-        helm s3 push --force sales-${{ steps.bump-version.outputs.new_tag }}.tgz s3repo
-      shell: bash
-
-    - name: Create Github Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: |
-        ./release.sh ${{ steps.bump-version.outputs.new_tag }}
+        helm s3 push --force sales-${{ inputs.version_tag }}.tgz s3repo
       shell: bash
