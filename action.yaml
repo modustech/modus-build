@@ -5,6 +5,9 @@ inputs:
   ecr_repository:
     description: "repository name of the service"
     required: true
+  ecr_registry:
+    description: "the ecr registry from aws login"
+    required: true
   aws_access_key_id:
     description: "aws access key id"
     required: true
@@ -45,7 +48,7 @@ runs:
     - 
       name: Build and Push
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REGISTRY: ${{ inputs.ecr_registry }}
         ECR_REPOSITORY: ${{ inputs.ecr_repository }}
         IMAGE_TAG: ${{ inputs.version_tag }}
         CODECOV_TAG: ${{ inputs.codecov_tag }}
