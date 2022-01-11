@@ -56,6 +56,8 @@ runs:
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN --target codecov -t $CODECOV_TAG .
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker create --name scratch sales-codecov
+        docker cp scratch:/app ./app
       shell: bash
     - 
       name: Install Helm
