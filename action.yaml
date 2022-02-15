@@ -20,6 +20,9 @@ inputs:
   codecov_tag:
     description: "the code coverage tag name"
     required: true
+  repo_name:
+    description: "the code repository name"
+    required: true
 
 runs:
   using: "composite"
@@ -56,7 +59,7 @@ runs:
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN --target codecov -t $CODECOV_TAG .
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker create --name scratch sales-codecov
+        docker create --name scratch ${{ inputs.repo_name }}-codecov
         docker cp scratch:/app ./app
       shell: bash
     - 
@@ -68,8 +71,8 @@ runs:
       name: Package Helm chart
       id: helm-package
       run: |
-        sed -i 's/dev/${{ inputs.version_tag }}/g' ./charts/sales/values.yaml
-        helm package ./charts/sales --version ${{ inputs.version_tag }}
+        sed -i 's/dev/${{ inputs.version_tag }}/g' ./charts/${{ inputs.repo_name }}/values.yaml
+        helm package ./charts/${{ inputs.repo_name }} --version ${{ inputs.version_tag }}
       shell: bash
     - 
       name: Push Helm chart to S3
@@ -82,5 +85,5 @@ runs:
       run: |
         helm plugin install https://github.com/hypnoglow/helm-s3.git
         helm repo add s3repo s3://modustech-helm-charts/charts
-        helm s3 push --force sales-${{ inputs.version_tag }}.tgz s3repo
+        helm s3 push --force ${{ inputs.repo_name }}-${{ inputs.version_tag }}.tgz s3repo
       shell: bash
