@@ -66,7 +66,7 @@ runs:
       name: Install Helm
       uses: azure/setup-helm@v1
       with:
-        version: v3.9.3
+        version: v3.6.3
     - 
       name: Package Helm chart
       id: helm-package
@@ -83,7 +83,7 @@ runs:
         AWS_REGION: 'us-west-2'
         AWS_S3_BUCKET: modustech-helm-charts
       run: |
-        helm plugin install https://github.com/hypnoglow/helm-s3.git
+        helm plugin install https://github.com/hypnoglow/helm-s3.git --version 0.13.0
         helm repo add s3repo s3://modustech-helm-charts/charts
         helm s3 push --force ${{ inputs.repo_name }}-${{ inputs.version_tag }}.tgz s3repo
       shell: bash
