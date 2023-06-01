@@ -57,7 +57,7 @@ runs:
         CODECOV_TAG: ${{ inputs.codecov_tag }}
       run: |
         docker build --build-arg NPM_TOKEN=$NPM_TOKEN --target codecov -t $CODECOV_TAG .
-        docker build --build-arg NPM_TOKEN=$NPM_TOKEN -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker buildx build --build-arg NPM_TOKEN=$NPM_TOKEN --platform linux/amd64,linux/arm64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker create --name scratch ${{ inputs.repo_name }}-codecov
         docker cp scratch:/app ./app
